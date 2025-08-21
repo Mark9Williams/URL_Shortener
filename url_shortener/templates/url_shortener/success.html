@@ -1,0 +1,34 @@
+{% extends "url_shortener/base.html" %}
+
+{% block title %}Success - URL Shortener{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow-sm">
+            <div class="card-body text-center">
+                <h1 class="h4 mb-4 text-success">Your Short URL is Ready!</h1>
+
+                <div class="alert alert-primary d-flex justify-content-between align-items-center">
+                    <a href="{{ short_url }}" target="_blank" class="fw-bold text-decoration-none">
+                        {{ short_url }}
+                    </a>
+                    <button class="btn btn-sm btn-outline-secondary ms-2"
+                            onclick="navigator.clipboard.writeText('{{ short_url }}')">
+                        Copy
+                    </button>
+                </div>
+
+                <p class="mb-3">
+                    Original URL: <br>
+                    <small class="text-muted">{{ obj.original_url }}</small>
+                </p>
+
+                <a href="{% url 'home' %}" class="btn btn-dark">
+                    Shorten Another URL
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
