@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
 from django.db.models import Q, F
 from django.shortcuts import get_object_or_404, redirect, render
+from django.contrib import messages
 from django.http import HttpResponseGone
 
 
@@ -12,7 +13,7 @@ from .models import ShortURL
 
 
 
-
+@login_required
 def home(request):
     form = URLForm()
     if request.method == 'POST':
@@ -33,12 +34,15 @@ def home(request):
     return render(request, 'url_shortener/home.html', {'form': form})
 
 
+@login_required
 def redirect_code(request, code):
-    obj = ShortURL.objects.filter(Q(short_code=code) | Q(custom_code=code)).first()
+    obj = ShortURL.objects.filter(Q(short_code=code) | Q(custom_code=code), user=request.user).first()
     if not obj:
-        return render(request, 'shortener/not_found.html', status=404)
+        messages.warning(request, "⚠️ This short link does not exist in your current links.")
+        return redirect('home')
     if obj.is_expired():
-        return HttpResponseGone('This link has expired.')
+        messages.warning(request, "⏳ This link has expired.")
+        return redirect('home')
 
 
     # Atomic increment
@@ -46,17 +50,7 @@ def redirect_code(request, code):
 
 
     return redirect(obj.original_url)
-
-
-
-
-@login_required
-def analytics(request):
-    links = ShortURL.objects.filter(user=request.user).order_by('-created_at')
-    return render(request, 'shortener/analytics.html', {'links': links})
-
-
-
+    
 
 def signup(request):
     if request.method == 'POST':
@@ -64,16 +58,19 @@ def signup(request):
         if form.is_valid():
             user = form.save()
             login(request, user)
+            messages.success(request, "Your account was created successfully!")
             return redirect('home')
     else:
         form = UserCreationForm()
     return render(request, 'registration/signup.html', {'form': form})
 
-def link_analytics(request):
-    # Get at most 20 records, ordered by creation date (latest first)
-    urls = ShortURL.objects.all().order_by('-created_at')[:20]
 
-    context = {
-        'urls': urls
-    }
-    return render(request, 'url_shortener/analytics.html', context)
+@login_required
+def link_analytics(request):
+    query = request.GET.get("q")
+    if query:
+        urls = ShortURL.objects.filter(short_code__iexact=query, user=request.user) | ShortURL.objects.filter(custom_code__iexact=query, user=request.user)
+    else:
+        urls = ShortURL.objects.filter(user=request.user).order_by('-click_count')[:20]
+
+    return render(request, "url_shortener/analytics.html", {"urls": urls})
